@@ -33,10 +33,35 @@ def add_missing_to_array(set1,set2):
 	list1.sort()
 	return list1
 
+class Socket:
+	id1 = 0
+	partname = ""
+	main_photo = ""
+	photo_exists = false
+	amount = 0
+	location = 0 
+	package_type = ""
+	pin_count = 0
+	pitch = 0
+	length = 0
+	width = 0
+	height = 0
+	package_drawing = ""
+	package_drawing_exists = false
+	socket_name = ""
+	manufacturer = ""
+	drawing = ""
+	dwg = ""
+	supplier = ""
+	description = ""
+	extra_photos = ""
+	publish = false
+	#def __init__(self, row):
 
 described = load_partnames_to_set("bd.xlsx", "Контактирующие", "Partname")
 loaded = load_partnames_to_set("sockets.xlsx", "sockets_20190329", "Наименование")
 not_online = add_missing_to_array(described, loaded)
 array_to_file("not_online.txt", not_online)
 array_to_file("wrong_online.txt", add_missing_to_array(loaded, described))
-
+for item in not_online:
+	socket_to_add = Socket()

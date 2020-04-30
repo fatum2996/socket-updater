@@ -49,11 +49,29 @@ def find_manufacturer(ws, manufacturer):
 	return manufacturer
 
 def ready_to_publish(socket):		
-	if (not socket.partname or not socket.pin_count or not socket.package_type or
-		not socket.pitch or not socket.length or not socket.width or not socket.socket_name or
-		not socket.manufacturer or not socket.drawing_exists or not socket.supplier and socket.manufacturer != "Тест-Контакт"):
-		return False	
-	return True	
+	if not socket.partname:
+		return "Socket partname is missing"
+	if not socket.pin_count:
+		return "Socket pin count is missing"
+	if not socket.package_type:
+		return "Socket package_type is missing"
+	if not socket.pitch:
+		return "Socket pitch is missing"
+	if not socket.length:
+		return "Socket length is missing"
+	if not socket.width:
+		return "Socket width is missing"
+	if not socket.socket_name:
+		return "Socket socket_name is missing"
+	if not socket.manufacturer:
+		return "Socket manufacturer is missing"
+	if not socket.drawing_exists:
+		return "Socket drawing is missing"			
+	if not socket.supplier:
+		return "Socket socket.supplier is missing"		
+	if socket.manufacturer == "Тест-Контакт":
+		return "Socket manufacturer is test-kontakt"						
+	return "OK"	
 
 def pick_photos(socket):
 	from shutil import copy
@@ -149,6 +167,14 @@ class Socket:
 		for i in range(1, 25):
 			ws.cell(row = max + 1, column = i).font = copy(ws.cell(row = 3, column = i).font)
 			ws.cell(row = max + 1, column = i).alignment = copy(ws.cell(row = 3, column = i).alignment) 
+def yes_or_no(question):
+    reply = str(input(question+' (y/n): ')).lower().strip()
+    if reply[0] == 'y':
+        return True
+    if reply[0] == 'n':
+        return False
+    else:
+        return yes_or_no("Uhhhh... please enter ")
 
 from openpyxl import load_workbook
 import xlsxwriter 
@@ -156,27 +182,37 @@ from shutil import copyfile
 wb_base = load_workbook(filename = "bd.xlsx")
 ws_base = wb_base["Контактирующие"]
 wb_online = load_workbook(filename = "sockets.xlsx")
-ws_online = wb_online["sockets"]
+ws_online = wb_online["sockets"] #загружаем базу и онлайн
 wb_packages = load_workbook(filename = "category.xlsx")
-ws_packages = wb_packages["category_20190402"]
-wb_manufacturers = load_workbook(filename = "manufacture.xlsx")
+ws_packages = wb_packages["category_20190402"] #загружаем категории
+wb_manufacturers = load_workbook(filename = "manufacture.xlsx") #загружаем производителей
 ws_manufacturers = wb_manufacturers["manufacture"]
-described = load_partnames_to_set(ws_base, "Partname")
-loaded = load_partnames_to_set(ws_online, "Наименование")
-not_online = add_missing_to_array(described, loaded)
-not_online.remove("Partname")
-array_to_file("not_online.txt", not_online)
-array_to_file("wrong_online.txt", add_missing_to_array(loaded, described))
-for item in not_online:
-	for row in ws_base.values:
-		if(row[1] == item):
-			socket_to_add = Socket(row)
-			if ready_to_publish(socket_to_add) and socket_to_add.to_publish:
-				pick_photos(socket_to_add)
-				socket_to_add.publish(ws_online, ws_packages, ws_manufacturers)
+described = load_partnames_to_set(ws_base, "Partname") #создаем множество описанных КУ
+loaded = load_partnames_to_set(ws_online, "Наименование") #создаем множество загруженных КУ
+not_online = add_missing_to_array(described, loaded) #делаем список не загруженных
+not_online.remove("Partname") #удаляем заголовок
+array_to_file("not_online.txt", not_online) #пишем в файл
+array_to_file("wrong_online.txt", add_missing_to_array(loaded, described)) #пишем лишние из загруженных в файл
+
+
+to_import = []
+for item in not_online: #все незагруженные
+	for row in ws_base.values: #ищем в БД незагруженные
+		if(row[1] == item): #если нашли
+			socket_to_add = Socket(row) #создаем из ряда объект
+			if ready_to_publish(socket_to_add) == "OK" and socket_to_add.to_publish:
+				to_import.append(socket_to_add)
+				print(socket_to_add.partname)
 				break
-			else:
-				if socket_to_add.to_publish:
-					print(socket_to_add.partname + " is not ready to publish")
+			#else:
+				#if ready_to_publish(socket_to_add) != "OK":
+				#	print(socket_to_add.partname + " is not ready to publish: " + ready_to_publish(socket_to_add))
+				#else:
+				#	print(socket_to_add.partname + " is not banned to publish in bd")
+if yes_or_no("Publish?"):
+	for socket in to_import:
+		pick_photos(socket)
+		socket.publish(ws_online, ws_packages, ws_manufacturers)
+		print(socket.partname + " is published")			
 max = ws_online.max_row
 wb_online.save("sockets.xlsx")
